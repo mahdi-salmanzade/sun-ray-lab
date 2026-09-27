@@ -1,0 +1,44 @@
+# Dependencies and build output
+node_modules/
+dist/
+.vite/
+coverage/
+
+# Optional third-party assets: local use only
+/public/kryptos*.glb
+/public/kryptos_screen_layout.json
+/public/reference/
+/public/references/
+/public/*.jpg
+/public/*.jpeg
+/public/*.png
+/public/*.zip
+/public/draco/
+/public/licenses/
+/public/local-assets.json
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.local
+
+# Generated captures and verification outputs
+/tools/validation/
+/captures/
+/screenshots/
+/validation-output/
+*_lab.json
+*_lab_*.f32
+*_cycles*.npy
+*_compare.png
+
+# Logs, caches, and editor/OS state
+*.log
+.DS_Store
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.idea/
+.vscode/

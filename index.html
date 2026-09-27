@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Interactive ray-traced sunlight and shadows through cut-letter geometry."
+    />
+    <title>Sun-Ray Lab</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='5' fill='%23e5af67'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <main id="app">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">LIGHT / OPTICAL TEST BENCH <span id="build-stamp" class="build-stamp"></span></p>
+          <h1>Sun-Ray Lab</h1>
+        </div>
+        <div class="live-readout" aria-live="polite">
+          <span><b id="readout-azimuth">218.00°</b> sun azimuth</span>
+          <span><b id="readout-elevation">33.00°</b> elevation</span>
+          <span><b id="readout-shadow">38.00°</b> shadow bearing</span>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <aside class="controls" aria-label="Sun and model controls">
+          <div class="control-section">
+            <h2>Light through the letters</h2>
+            <p class="control-hint">Move the sun to watch the cutout letters project onto the paving. Drag the sculpture to look around.</p>
+            <button id="letter-demo" class="button button-emphasis wide">Reset to letter-light view</button>
+            <label class="switch-row" for="follow-shadow">
+              <span>Keep the shadow in view</span>
+              <input id="follow-shadow" type="checkbox" checked />
+            </label>
+            <small>The camera follows the same patch as the sun or model rotates. Turn off to keep your viewpoint fixed.</small>
+          </div>
+
+          <div class="control-section">
+            <div class="section-heading">
+              <h2>Move the sun</h2>
+              <span class="status-dot"><i></i>live</span>
+            </div>
+
+            <div class="button-row view-buttons">
+              <button id="sunmode-ephemeris" class="button">
+                Real ephemeris
+              </button>
+              <button id="sunmode-manual" class="button active">Manual angle</button>
+            </div>
+
+            <div id="ephemeris-controls" class="hidden">
+              <div class="control inline-pair">
+                <label>
+                  <span>Date</span>
+                  <input id="date" type="date" value="2025-06-21" />
+                </label>
+                <label>
+                  <span>Local time</span>
+                  <input id="time" type="time" value="14:15" />
+                </label>
+              </div>
+              <label class="switch-row" for="dst">
+                <span>Daylight saving (EDT)</span>
+                <input id="dst" type="checkbox" checked />
+              </label>
+              <div class="control inline-pair">
+                <label>
+                  <span>Latitude</span>
+                  <input
+                    id="latitude"
+                    type="number"
+                    step="0.0001"
+                    value="38.9521"
+                  />
+                </label>
+                <label>
+                  <span>Longitude</span>
+                  <input
+                    id="longitude"
+                    type="number"
+                    step="0.0001"
+                    value="-77.1466"
+                  />
+                </label>
+              </div>
+              <small id="ephemeris-note">NOAA solar position, CIA courtyard.</small>
+            </div>
+
+            <div id="manual-controls">
+            <div class="control">
+              <span>
+                Azimuth
+                <span class="number-wrap">
+                  <input
+                    id="azimuth-number"
+                    type="number"
+                    min="0"
+                    max="360"
+                    step="0.01"
+                    value="218.00"
+                    aria-label="Exact azimuth in degrees"
+                  />
+                  °
+                </span>
+              </span>
+              <input
+                id="azimuth"
+                type="range"
+                min="0"
+                max="360"
+                step="0.25"
+                value="218"
+                aria-label="Sun azimuth"
+              />
+              <small>0° N · 90° E · 180° S · 270° W</small>
+            </div>
+
+            <div class="control">
+              <span>
+                Elevation
+                <span class="number-wrap">
+                  <input
+                    id="elevation-number"
+                    type="number"
+                    min="2"
+                    max="89"
+                    step="0.01"
+                    value="33.00"
+                    aria-label="Exact elevation in degrees"
+                  />
+                  °
+                </span>
+              </span>
+              <input
+                id="elevation"
+                type="range"
+                min="2"
+                max="89"
+                step="0.25"
+                value="33"
+                aria-label="Sun elevation"
+              />
+              <small>Low angles create longer ground projections.</small>
+            </div>
+            </div>
+
+            <div class="control">
+              <span>
+                Model yaw
+                <span class="number-wrap">
+                  <input
+                    id="yaw-number"
+                    type="number"
+                    min="0"
+                    max="360"
+                    step="0.01"
+                    value="0.00"
+                    aria-label="Exact model yaw in degrees"
+                  />
+                  °
+                </span>
+              </span>
+              <input
+                id="model-yaw"
+                type="range"
+                min="0"
+                max="360"
+                step="0.25"
+                value="0"
+                aria-label="Model yaw"
+              />
+              <small>Use this until the sculpture’s surveyed north is known.</small>
+            </div>
+          </div>
+
+          <div class="control-section words-section">
+            <h2>Words on the ground</h2>
+            <div id="words-now" class="physics-body">
+              <span class="muted">Loading the letter layout…</span>
+            </div>
+            <button id="words-show" class="button button-emphasis wide" disabled>
+              Show me the clearest words
+            </button>
+            <button id="words-scan" class="button wide" disabled>Find the best times this year</button>
+            <div id="words-times" class="preset-grid words-times"></div>
+            <label class="switch-row" for="words-mirror">
+              <span>Mirror the view (reading aid)</span>
+              <input id="words-mirror" type="checkbox" />
+            </label>
+            <small class="words-note">
+              Words form when the sun is below ~55° and faces a panel, and
+              only where no other part of the sculpture shades it. At steep
+              angles, the walls of the cutouts block parts of the letters;
+              the light becomes dashes and soft spots. Light through a letter is
+              mirror-image on one side of each panel.
+            </small>
+          </div>
+
+          <div class="control-section">
+            <h2>Where to stand</h2>
+            <div class="preset-grid">
+              <button class="preset camera-preset" data-camera="front">
+                <b>Front · eye level</b>
+                <span>ciphertext side, 1.7 m</span>
+              </button>
+              <button class="preset camera-preset" data-camera="pocket">
+                <b>Behind the screen</b>
+                <span>the shadow pocket, 1.7 m</span>
+              </button>
+              <button class="preset camera-preset" data-camera="overview">
+                <b>Overview</b>
+                <span>whole sculpture</span>
+              </button>
+              <button class="preset camera-preset" data-camera="top">
+                <b>From above</b>
+                <span>north up</span>
+              </button>
+            </div>
+            <label class="switch-row" for="show-photo">
+              <span>Show the real photo (Library of Congress)</span>
+              <input id="show-photo" type="checkbox" />
+            </label>
+          </div>
+
+          <div class="control-section">
+            <h2>Angle presets</h2>
+            <div class="preset-grid">
+              <button class="preset" data-date="2025-06-21" data-time="14:15">
+                <b>Summer solstice · 2:15pm</b>
+                <span>computed, not typed</span>
+              </button>
+              <button class="preset" data-date="2025-06-21" data-time="13:09">
+                <b>Solstice solar noon</b>
+                <span>highest sun of the year</span>
+              </button>
+              <button class="preset" data-date="2025-12-21" data-time="12:00">
+                <b>Winter solstice · noon</b>
+                <span>lowest midday sun</span>
+              </button>
+              <button class="preset" data-date="2025-03-20" data-time="12:10">
+                <b>Equinox · noon</b>
+                <span>due-south beam</span>
+              </button>
+              <button class="preset" data-azimuth="247.5" data-elevation="45">
+                <b>ENE shadow (manual)</b>
+                <span>247.5° / 45°</span>
+              </button>
+              <button class="preset" data-azimuth="275.6" data-elevation="28.4">
+                <b>2011 photo estimate</b>
+                <span>275.6° / 28.4°</span>
+              </button>
+              <button class="preset" data-date="2002-10-18" data-time="15:00" data-camera="pocket-oct">
+                <b>Elonka Dunin's visit</b>
+                <span>18 Oct 2002 · 3pm, eyewitness</span>
+              </button>
+              <button class="preset" data-date="2025-06-21" data-time="12:00" data-camera="highsmith" data-photo="1">
+                <b>Highsmith photo sun</b>
+                <span>June noon (estimated)</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="control-section">
+            <div class="section-heading">
+              <h2>Optics</h2>
+              <span id="convergence" class="convergence">idle</span>
+            </div>
+            <div class="control">
+              <span>Letter screen</span>
+              <select id="screen-select">
+                <option value="demo" selected>Open demo · SUNLIGHT stencil</option>
+                <option value="rebuilt">Rebuilt from scratch (¼″)</option>
+                <option value="thin">Printable model, re-cut to ¼″</option>
+                <option value="original">Printable model, original 59 mm</option>
+              </select>
+              <small>
+                The open demo is original geometry with real letter holes.
+                Kryptos screens are optional local imports; see the README.
+                Thick printable plates block more angled light.
+              </small>
+            </div>
+            <label class="switch-row" for="true-sun">
+              <span>True solar disc (0.53°)</span>
+              <input id="true-sun" type="checkbox" checked />
+            </label>
+            <small style="display:block;color:#75817d;font-size:11px;margin:-6px 0 10px;line-height:1.4">
+              On: sunlight has realistic soft edges. Off: an ideal point light
+              shows the sharp projection through the same cutout geometry.
+            </small>
+            <div class="control">
+              <span>
+                Diffuse sky fill
+                <span class="number-wrap"><span id="sky-fill-readout">15%</span></span>
+              </span>
+              <input
+                id="sky-fill"
+                type="range"
+                min="0"
+                max="0.4"
+                step="0.01"
+                value="0.15"
+                aria-label="Diffuse sky fill fraction"
+              />
+              <small>Clear-sky diffuse is ~10–20% of horizontal illuminance; it veils letter contrast.</small>
+            </div>
+          </div>
+
+          <div class="control-section">
+            <h2>Resolvability</h2>
+            <div id="physics-body" class="physics-body">Computing…</div>
+            <p class="physics-sub">Probe · ray through the view centre</p>
+            <div id="probe-body" class="physics-body"></div>
+          </div>
+
+          <div class="control-section">
+            <h2>View</h2>
+            <div class="button-row view-buttons">
+              <button id="view-perspective" class="button active">Perspective</button>
+              <button id="view-top" class="button">Top view</button>
+              <button id="view-readable" class="button button-emphasis">
+                Read shadows
+              </button>
+            </div>
+            <label class="switch-row" for="isolate-screen">
+              <span>Read mode: hide tree and rocks</span>
+              <input id="isolate-screen" type="checkbox" checked />
+            </label>
+            <label class="switch-row" for="show-rays">
+              <span>Show sun disc & guide rays (analysis)</span>
+              <input id="show-rays" type="checkbox" />
+            </label>
+            <label class="switch-row" for="show-compass">
+              <span>Show compass ring (analysis)</span>
+              <input id="show-compass" type="checkbox" />
+            </label>
+          </div>
+
+          <div id="letter-controls" class="control-section letter-controls hidden">
+            <div class="section-heading">
+              <h2>Top-down window</h2>
+              <span class="status-dot"><i></i><span id="readout-window">60 u</span></span>
+            </div>
+            <p class="control-hint">
+              Scroll to zoom about the cursor, drag to pan; the N key shows
+              north. Read mode hides the copper from the camera — it still casts — and
+              paints every receiver the same grey, so brightness is irradiance.
+            </p>
+            <div class="control">
+              <span>
+                Window width
+                <span class="number-wrap">
+                  <input id="letter-window-number" type="number" min="4" max="600" step="1" value="60" aria-label="Window width in model units" />
+                  u
+                </span>
+              </span>
+              <input id="letter-window" type="range" min="4" max="600" step="1" value="60" aria-label="Window width" />
+              <small>Letters are ~3.1 u tall: zoom to 10–30 u to read them.</small>
+            </div>
+            <button id="recenter" class="button">Re-centre on the screen's shadow</button>
+          </div>
+
+          <div class="note">
+            Sun-Ray Lab · MIT-licensed code and original demo. Optional Kryptos
+            assets have separate terms. Geometry and north alignment are
+            experimental; this is not a survey of the CIA courtyard.
+          </div>
+        </aside>
+
+        <section class="viewport-shell" aria-label="Interactive cut-letter sculpture">
+          <div id="viewport"></div>
+          <div id="loading" class="loading">
+            <span class="loader"></span>
+            <p>Loading detailed cut-letter geometry…</p>
+            <strong id="loading-percent">0%</strong>
+          </div>
+          <div id="hud-orbit" class="viewport-hud">
+            <span>Drag to orbit</span>
+            <span>Scroll to zoom</span>
+            <span>Right-drag to pan</span>
+          </div>
+          <div id="hud-ortho" class="viewport-hud hidden">
+            <span>Scroll to zoom</span>
+            <span>Drag to pan</span>
+            <span id="hud-orient">North up</span>
+          </div>
+          <div id="crosshair" class="crosshair hidden" aria-hidden="true"></div>
+          <div id="words-chip" class="words-chip hidden" aria-live="polite"></div>
+          <figure id="photo-inset" class="photo-inset hidden">
+            <img
+
+              alt="Kryptos photographed by Carol M. Highsmith: rows of light dashes on the granite behind the screen"
+            />
+            <figcaption>
+              Real Kryptos, approximately the same viewpoint. Carol M. Highsmith, Library of Congress
+              LCCN 2011631531 (no known restrictions on publication). Date unknown (1980–2006); the
+              sun is estimated. Compare the rows of dashes on the floor.
+            </figcaption>
+          </figure>
+          <p id="eyewitness" class="eyewitness hidden">
+            “There were areas of shadow behind the sculpture where you could
+            read the letters in light. Due to the curve of the sculpture, there
+            were other areas where the light came through in narrow bars, giving
+            a morse code … effect.” — Elonka Dunin, 18 Oct 2002, afternoon
+          </p>
+          <div id="mode-chip" class="mode-chip hidden" aria-live="polite">
+            Read mode · copper hidden from camera, still casting · receivers neutral grey
+          </div>
+          <div class="north-key" aria-hidden="true">
+            <span>N</span>
+            <i></i>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
